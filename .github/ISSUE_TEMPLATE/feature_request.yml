@@ -1,0 +1,21 @@
+name: "Feature Request"
+description: "Suggest an idea or enhancement for rootChat"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thank you for helping improve rootChat!"
+  - type: textarea
+    id: feature
+    attributes:
+      label: "Feature Description"
+      description: "A clear and concise description of the feature or enhancement you would like to see."
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: "Use Case / Problem Solved"
+      description: "Why is this feature needed, and how will it improve rootChat?"
+    validations:
+      required: true

@@ -1,0 +1,83 @@
+# SQLite Database Schema Definitions
+
+CREATE_CONVERSATIONS_TABLE = """
+CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    model TEXT NOT NULL,
+    preset TEXT DEFAULT 'general',
+    is_pinned BOOLEAN DEFAULT 0,
+    is_archived BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+CREATE_MESSAGES_TABLE = """
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL,
+    role TEXT CHECK(role IN ('user', 'assistant', 'system')) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+);
+"""
+
+CREATE_MEMORIES_TABLE = """
+CREATE TABLE IF NOT EXISTS memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    category TEXT,
+    source TEXT DEFAULT 'user',
+    is_enabled BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+CREATE_SETTINGS_TABLE = """
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+"""
+
+CREATE_DOCUMENTS_TABLE = """
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    file_size INTEGER,
+    file_hash TEXT NOT NULL,
+    status TEXT DEFAULT 'Pending',
+    chunk_count INTEGER DEFAULT 0,
+    indexed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+CREATE_DOCUMENT_CHUNKS_TABLE = """
+CREATE TABLE IF NOT EXISTS document_chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id INTEGER NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    page_number INTEGER,
+    embedding BLOB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+);
+"""
+
+# Helper to get all creation queries
+SCHEMA_QUERIES = [
+    CREATE_CONVERSATIONS_TABLE,
+    CREATE_MESSAGES_TABLE,
+    CREATE_MEMORIES_TABLE,
+    CREATE_SETTINGS_TABLE,
+    CREATE_DOCUMENTS_TABLE,
+    CREATE_DOCUMENT_CHUNKS_TABLE
+]

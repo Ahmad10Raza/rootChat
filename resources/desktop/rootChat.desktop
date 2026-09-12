@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=rootChat
+Comment=Private local AI assistant powered by Ollama
+Exec=rootChat
+Icon=rootChat
+Terminal=false
+Type=Application
+Categories=Utility;Development;Office;
+StartupNotify=true
+StartupWMClass=rootChat
