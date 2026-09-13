@@ -50,16 +50,16 @@ Unlike web-based AI tools or cloud wrapper apps:
 
 ## 🚀 Installation
 
-rootChat is packaged as a standard modern Linux application in both `.deb` and portable `.AppImage` formats.
+rootChat is packaged as a standard modern Linux application in `.deb`, portable `.AppImage`, and `.flatpak` formats.
 
 ### Option 1: Debian Package (`.deb`) — Recommended for Ubuntu / Debian
 
 The `.deb` package installs rootChat into standard Linux directories (`/opt/rootChat`, `/usr/bin/rootChat`, `/usr/share/applications`, and `/usr/share/icons`), integrating with your application launcher and GNOME Dock.
 
-1. Download `rootChat_0.7.0_amd64.deb` from the [Latest Release](https://github.com/Ahmad10Raza/rootChat/releases/latest).
+1. Download `rootChat_0.7.1_amd64.deb` from the [Latest Release](https://github.com/Ahmad10Raza/rootChat/releases/latest).
 2. Install via terminal:
    ```bash
-   sudo apt install ./rootChat_0.7.0_amd64.deb
+   sudo apt install ./rootChat_0.7.1_amd64.deb
    ```
 3. Launch from your application menu or run:
    ```bash
@@ -77,19 +77,27 @@ sudo apt remove rootchat
 
 Runs on any modern Linux distribution without installation:
 
-1. Download `rootChat-0.7.0-x86_64.AppImage` from the [Latest Release](https://github.com/Ahmad10Raza/rootChat/releases/latest).
+1. Download `rootChat-0.7.1-x86_64.AppImage` from the [Latest Release](https://github.com/Ahmad10Raza/rootChat/releases/latest).
 2. Make it executable:
    ```bash
-   chmod +x rootChat-0.7.0-x86_64.AppImage
+   chmod +x rootChat-0.7.1-x86_64.AppImage
    ```
 3. Run:
    ```bash
-   ./rootChat-0.7.0-x86_64.AppImage
+   ./rootChat-0.7.1-x86_64.AppImage
    ```
 
 ---
 
-### Option 3: Run from Source (Development)
+### Option 3: Flatpak / Flathub
+
+rootChat is prepared for publication on Flathub as `io.github.Ahmad10Raza.rootChat`:
+- **Manifest**: [`packaging/flatpak/io.github.Ahmad10Raza.rootChat.yaml`](packaging/flatpak/io.github.Ahmad10Raza.rootChat.yaml)
+- **Publishing & Submission Guide**: [`docs/FLATHUB_PUBLISHING_GUIDE.md`](docs/FLATHUB_PUBLISHING_GUIDE.md)
+
+---
+
+### Option 4: Run from Source (Development)
 
 1. **Clone the repository:**
    ```bash
