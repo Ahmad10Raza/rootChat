@@ -6,6 +6,7 @@ class BaseLoader(ABC):
         pass
         
     @abstractmethod
-    def load(self, file_path: str) -> list:
+    def load(self, file_path: str, progress_callback=None) -> list:
         """Returns a list of dicts: [{'page_number': 1, 'content': '...'}, ...]"""
         pass
+

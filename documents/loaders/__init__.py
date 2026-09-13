@@ -11,8 +11,12 @@ class DocumentParser:
             TextLoader() # Catch-all for text-like files
         ]
         
-    def parse(self, file_path: str) -> list:
+    def parse(self, file_path: str, progress_callback=None) -> list:
         for loader in self.loaders:
             if loader.can_load(file_path):
-                return loader.load(file_path)
+                try:
+                    return loader.load(file_path, progress_callback=progress_callback)
+                except TypeError:
+                    return loader.load(file_path)
         raise ValueError(f"No suitable loader found for file: {file_path}")
+

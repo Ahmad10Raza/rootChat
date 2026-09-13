@@ -58,7 +58,7 @@ def main():
     # 6. Create and Display Main Window
     try:
         main_window = MainWindow(app_state=app_state, client=client, db_manager=db_manager)
-        main_window.resize(1180, 740)
+        main_window.resize(1260, 760)
         main_window.show()
     except Exception as e:
         logger.critical("Failed to initialize MainWindow: %s", e)

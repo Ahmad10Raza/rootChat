@@ -56,6 +56,15 @@ class MessageWidget(QWidget):
         self.header = QLabel(title_text)
         self.header.setObjectName("MsgHeader")
         header_layout.addWidget(self.header)
+
+        if role == "assistant":
+            self.memory_pill = QLabel()
+            self.memory_pill.setObjectName("MemoryRecalledPill")
+            self.memory_pill.setVisible(False)
+            header_layout.addWidget(self.memory_pill)
+        else:
+            self.memory_pill = None
+
         header_layout.addStretch()
         
         self.main_layout.addWidget(self.header_row)
@@ -87,16 +96,62 @@ class MessageWidget(QWidget):
             actions_layout.addWidget(self.regen_btn)
             self.main_layout.addLayout(actions_layout)
             
+    def set_recalled_memories(self, memories: list):
+        """Displays a badge indicating personalized memories recalled for this response."""
+        if not self.memory_pill or not memories:
+            if self.memory_pill:
+                self.memory_pill.setVisible(False)
+            return
+
+        count = len(memories)
+        text = f"🧠 {count} memory recalled" if count == 1 else f"🧠 {count} memories recalled"
+        self.memory_pill.setText(text)
+
+        tooltip_lines = ["<b>Personalized Context Recalled:</b>"]
+        for m in memories:
+            cat = m.get("category", "general")
+            cnt = m.get("content", "")
+            tooltip_lines.append(f"• [{cat}] {cnt}")
+        self.memory_pill.setToolTip("<br>".join(tooltip_lines))
+        self.memory_pill.setStyleSheet("""
+            QLabel#MemoryRecalledPill {
+                background-color: rgba(255, 95, 21, 0.12);
+                color: #FF5F15;
+                border: 1px solid rgba(255, 95, 21, 0.35);
+                border-radius: 9px;
+                padding: 1px 8px;
+                font-size: 11px;
+                font-weight: 600;
+            }
+        """)
+        self.memory_pill.setVisible(True)
+
+    def _create_text_label(self, content: str = "") -> QLabel:
+        text_lbl = QLabel()
+        text_lbl.setObjectName("MsgContent")
+        t_font = text_lbl.font()
+        t_font.setPixelSize(15)
+        text_lbl.setFont(t_font)
+        text_lbl.setTextFormat(Qt.TextFormat.MarkdownText)
+        text_lbl.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        text_lbl.setOpenExternalLinks(True)
+        text_lbl.setWordWrap(True)
+        text_lbl.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        text_lbl.customContextMenuRequested.connect(
+            lambda p, l=text_lbl: self._show_context_menu(self.mapFromGlobal(l.mapToGlobal(p)))
+        )
+        if content:
+            text_lbl.setText(content)
+        return text_lbl
+
     def render_content(self, text: str):
         self.content = text
         blocks = list(parse_markdown_blocks(text))
         if not blocks:
             if self.content_layout.count() == 0:
-                text_lbl = QLabel()
-                text_lbl.setObjectName("MsgContent")
-                t_font = text_lbl.font()
-                t_font.setPixelSize(15)
-                text_lbl.setFont(t_font)
+                text_lbl = self._create_text_label("")
                 self.content_layout.addWidget(text_lbl)
             return
 
@@ -123,6 +178,8 @@ class MessageWidget(QWidget):
                     if lang_lbl:
                         lang_lbl.setText(lang if lang else "Code")
                 else:
+                    widget.setTextFormat(Qt.TextFormat.MarkdownText)
+                    widget.setWordWrap(True)
                     widget.setText(content)
             else:
                 # Type mismatch or doesn't exist, create a new one
@@ -165,20 +222,7 @@ class MessageWidget(QWidget):
                     
                     self.content_layout.insertWidget(i, code_container)
                 else:
-                    text_lbl = QLabel()
-                    text_lbl.setObjectName("MsgContent")
-                    t_font = text_lbl.font()
-                    t_font.setPixelSize(15)
-                    text_lbl.setFont(t_font)
-                    text_lbl.setTextFormat(Qt.TextFormat.MarkdownText)
-                    text_lbl.setText(content)
-                    text_lbl.setTextInteractionFlags(
-                        Qt.TextInteractionFlag.TextBrowserInteraction | Qt.TextInteractionFlag.TextSelectableByMouse
-                    )
-                    text_lbl.setOpenExternalLinks(True)
-                    text_lbl.setWordWrap(True)
-                    text_lbl.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-                    text_lbl.customContextMenuRequested.connect(lambda p, l=text_lbl: self._show_context_menu(self.mapFromGlobal(l.mapToGlobal(p))))
+                    text_lbl = self._create_text_label(content)
                     self.content_layout.insertWidget(i, text_lbl)
                 
     def changeEvent(self, event):

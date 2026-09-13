@@ -38,9 +38,10 @@ Unlike web-based AI tools or cloud wrapper apps:
 - ⚡ **Spotlight-Style Mini-Chat**: Hit <kbd>Ctrl</kbd>+<kbd>Space</kbd> anywhere to summon a floating HUD for quick queries without switching your workspace.
 - 📦 **In-App Model Manager**: Browse, download (with real-time progress & transfer speed), inspect, and delete local Ollama models directly from the UI (<kbd>Ctrl</kbd>+<kbd>M</kbd>).
 - 🎭 **Specialized Prompt Presets**: Switch between built-in personas tailored for coding, Linux administration, SQL, technical writing, executive summaries, or custom instructions.
-- 🧠 **Persistent Local Memory**: Remembers key user preferences and personal facts ("I prefer Python and concise explanations") and selectively injects them into conversations.
-- 📚 **Document Knowledge Base (RAG)**: Ingest PDFs, DOCX files, and plain text notes with local semantic retrieval.
-- 🎨 **Modern Dark + Safety Orange Design**: Refined dark canvas (`#0F1117`) with vibrant Safety Orange accents (`#FF5F15`), smooth card-based scrollable settings, and balanced ChatGPT-style typography (13px navigation, 15px chat body).
+- 🧠 **Persistent Local Memory**: Remembers key user preferences and personal facts ("I prefer Python and concise explanations") with dedicated top-bar and sidebar toggle switches.
+- 📚 **Document Knowledge Base (RAG)**: Ingest PDFs, code files, DOCX, and plain text notes with local semantic retrieval, citation chips, and per-conversation scoping.
+- ⚙️ **Comprehensive Settings & Storage**: Customize default model, default persona, generation temperature slider, context history limits, and run SQLite `VACUUM` database maintenance.
+- 🎨 **Modern Dark & Light Themes**: Refined dark canvas (`#0F1117`) and crisp light canvas (`#F6F8FA`) with vibrant Safety Orange accents (`#FF5F15`), smooth card-based scrollable settings, and balanced typography.
 - 🖼️ **Custom In-Chat Avatars**: Transparent 3D robot branding for the assistant and a clean user avatar badge for prompt messages.
 - 📌 **Conversation Management**: Pin important chats to top, archive past chats with an inline toggle badge, rename, search, and export conversations to Markdown, Plain Text, or JSON.
 - 🔔 **Linux System Tray**: Minimizes cleanly to tray on close, displays generation progress, and delivers native desktop notifications upon response completion.

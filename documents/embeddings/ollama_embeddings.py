@@ -9,6 +9,9 @@ class OllamaEmbeddings(EmbeddingProvider):
 
     def embed_text(self, text: str) -> list:
         return self.client.generate_embeddings(self.model_name, text)
+
+    def embed_query(self, text: str) -> list:
+        return self.embed_text(text)
         
     def embed_documents(self, chunks: list) -> list:
         for chunk in chunks:

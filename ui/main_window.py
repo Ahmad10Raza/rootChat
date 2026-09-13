@@ -10,8 +10,10 @@ from core.app_state import AppState
 from core.ollama_worker import OllamaConnectionWorker, OllamaModelsWorker
 from ui.sidebar import Sidebar
 from ui.status_bar import StatusBar
-from ui.model_selector import ModelSelector
+from ui.model_selector import ModelSelector, TopBarIconButton
 from ui.preset_selector import PresetSelector
+from ui.knowledge_selector import KnowledgeSelector
+from ui.memory_selector import MemorySelector
 from ui.chat_window import ChatWindow
 from ui.toast import Toast
 from core.chat_manager import ChatManager
@@ -52,7 +54,7 @@ class MainWindow(QMainWindow):
         self.document_manager = DocumentManager(self.app_state, self.doc_repo, self.embeddings)
         
         # Managers
-        self.memory_manager = MemoryManager(self.app_state, self.mem_repo)
+        self.memory_manager = MemoryManager(self.app_state, self.mem_repo, embedding_provider=self.embeddings)
         self.context_manager = ContextManager(self.app_state, self.memory_manager, self.msg_repo, self.retriever)
         self.chat_manager = ChatManager(self.app_state, self.client, self.db_manager, self.memory_manager, self.context_manager)
         
@@ -68,6 +70,7 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self._setup_shortcuts()
         self._setup_tray_icon()
+        self.chat_manager.start_new_conversation()
         self.check_ollama_connection()
 
     def init_ui(self):
@@ -106,8 +109,8 @@ class MainWindow(QMainWindow):
         top_bar.setObjectName("TopBar")
         top_bar.setFixedHeight(54)
         top_bar_layout = QHBoxLayout(top_bar)
-        top_bar_layout.setContentsMargins(14, 0, 14, 0)
-        top_bar_layout.setSpacing(8)
+        top_bar_layout.setContentsMargins(12, 0, 12, 0)
+        top_bar_layout.setSpacing(6)
 
         # Model Selector
         self.model_selector = ModelSelector()
@@ -119,7 +122,7 @@ class MainWindow(QMainWindow):
         # Separator between Model and Persona
         sep1 = QFrame()
         sep1.setObjectName("TopBarSeparator")
-        sep1.setFixedSize(1, 20)
+        sep1.setFixedSize(1, 18)
         top_bar_layout.addWidget(sep1)
 
         # Persona Selector
@@ -127,6 +130,33 @@ class MainWindow(QMainWindow):
         self.preset_selector.preset_changed.connect(self._on_preset_selected)
         self.preset_selector.set_preset(self.app_state.get("active_preset", "general"))
         top_bar_layout.addWidget(self.preset_selector)
+
+        # Separator between Persona and Context controls
+        sep2 = QFrame()
+        sep2.setObjectName("TopBarSeparator")
+        sep2.setFixedSize(1, 18)
+        top_bar_layout.addWidget(sep2)
+
+        # Knowledge Context Selector
+        self.knowledge_selector = KnowledgeSelector(self.document_manager)
+        self.knowledge_selector.knowledge_changed.connect(self._on_knowledge_selected)
+        self.knowledge_selector.manage_requested.connect(self._open_knowledge_dialog)
+        self.chat_manager.knowledge_mode_changed.connect(self.knowledge_selector.set_knowledge)
+        if self.document_manager:
+            self.document_manager.document_added.connect(lambda *_: self.knowledge_selector.set_document_manager(self.document_manager))
+            self.document_manager.indexing_finished.connect(lambda *_: self.knowledge_selector.set_document_manager(self.document_manager))
+        self.knowledge_selector.set_knowledge(
+            self.app_state.get("active_knowledge_mode", "none"),
+            self.app_state.get("active_knowledge_doc_ids", [])
+        )
+        top_bar_layout.addWidget(self.knowledge_selector)
+
+        # Memory Selector
+        self.memory_selector = MemorySelector(self.memory_manager)
+        self.memory_selector.memory_toggled.connect(self._on_memory_toggled)
+        self.memory_selector.manage_requested.connect(self._open_memory_dialog)
+        self.memory_selector.set_enabled_state(self.app_state.get("memory_enabled", True))
+        top_bar_layout.addWidget(self.memory_selector)
         
         top_bar_layout.addStretch(1)
 
@@ -135,7 +165,7 @@ class MainWindow(QMainWindow):
         self.mini_chat_btn.setObjectName("TopBarMiniChatBtn")
         self.mini_chat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.mini_chat_btn.setToolTip("Quick spotlight-style query (Ctrl+Space)")
-        self.mini_chat_btn.setFixedHeight(30)
+        self.mini_chat_btn.setFixedHeight(28)
         self.mini_chat_btn.clicked.connect(self._open_mini_chat)
         top_bar_layout.addWidget(self.mini_chat_btn)
 
@@ -143,31 +173,31 @@ class MainWindow(QMainWindow):
         self.export_btn.setObjectName("TopBarBtn")
         self.export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.export_btn.setToolTip("Export the active chat to Markdown, Text, or JSON")
-        self.export_btn.setFixedHeight(30)
+        self.export_btn.setFixedHeight(28)
         self.export_btn.clicked.connect(self._on_export_current_chat)
         top_bar_layout.addWidget(self.export_btn)
 
-        self.shortcuts_btn = QPushButton("⌨")
+        self.shortcuts_btn = TopBarIconButton("⌨")
         self.shortcuts_btn.setObjectName("TopBarIconBtn")
         self.shortcuts_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.shortcuts_btn.setToolTip("Keyboard Shortcuts (Ctrl+/ or ?)")
-        self.shortcuts_btn.setFixedSize(30, 30)
+        self.shortcuts_btn.setFixedSize(28, 28)
         self.shortcuts_btn.clicked.connect(self._open_shortcuts_dialog)
         top_bar_layout.addWidget(self.shortcuts_btn)
 
         # Separator before status
-        sep2 = QFrame()
-        sep2.setObjectName("TopBarSeparator")
-        sep2.setFixedSize(1, 20)
-        top_bar_layout.addWidget(sep2)
+        sep4 = QFrame()
+        sep4.setObjectName("TopBarSeparator")
+        sep4.setFixedSize(1, 18)
+        top_bar_layout.addWidget(sep4)
 
         # Connection status pill badge
         self.conn_pill = QFrame()
         self.conn_pill.setObjectName("ConnectionPill")
-        self.conn_pill.setFixedHeight(26)
+        self.conn_pill.setFixedHeight(24)
         self.conn_pill.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         conn_layout = QHBoxLayout(self.conn_pill)
-        conn_layout.setContentsMargins(8, 0, 8, 0)
+        conn_layout.setContentsMargins(6, 0, 6, 0)
         conn_layout.setSpacing(4)
 
         self.conn_dot = QLabel("●")
@@ -183,6 +213,15 @@ class MainWindow(QMainWindow):
         # Chat Window
         self.chat_window = ChatWindow(self.chat_manager)
         right_layout.addWidget(self.chat_window, 1)
+
+        # Wire knowledge context pill in composer
+        self.chat_manager.knowledge_mode_changed.connect(self.chat_window.message_input.set_knowledge_context)
+        self.chat_window.message_input.knowledge_scope_requested.connect(self.knowledge_selector._open_scoping_dialog)
+        self.chat_window.message_input.knowledge_clear_requested.connect(lambda: self._on_knowledge_selected("none", []))
+        self.chat_window.message_input.set_knowledge_context(
+            self.app_state.get("active_knowledge_mode", "none"),
+            self.app_state.get("active_knowledge_doc_ids", [])
+        )
 
         content_layout.addWidget(right_panel, 1)
 
@@ -351,11 +390,18 @@ class MainWindow(QMainWindow):
             self.preset_selector.set_preset(value)
         elif key == "active_conversation_id":
             self.sidebar.select_conversation(value)
+        elif key == "memory_enabled":
+            self.memory_selector.set_enabled_state(value)
         elif key == "tray_icon_enabled" and self.tray_icon:
             if value:
                 self.tray_icon.show()
             else:
                 self.tray_icon.hide()
+
+    @Slot(bool)
+    def _on_memory_toggled(self, enabled: bool):
+        self.app_state.set("memory_enabled", enabled)
+        logger.info("MainWindow updated memory_enabled to %s", enabled)
 
     @Slot(bool, str)
     def _on_connection_check_finished(self, is_connected: bool, message: str):
@@ -430,6 +476,23 @@ class MainWindow(QMainWindow):
             self.conv_repo.update_conversation(conv_id, preset=preset_id)
             logger.info("Updated active conversation %d preset to '%s'", conv_id, preset_id)
 
+    @Slot(str, list)
+    def _on_knowledge_selected(self, mode: str, doc_ids: list):
+        conv_id = self.app_state.get("active_conversation_id")
+        self.chat_manager.set_conversation_knowledge(conv_id, mode, doc_ids)
+        logger.info("Active conversation %s knowledge updated: mode=%s, %d docs", conv_id, mode, len(doc_ids))
+
+    def _open_knowledge_dialog(self):
+        if self.document_manager:
+            from ui.knowledge_panel import KnowledgeDialog
+            dialog = KnowledgeDialog(self.document_manager, self)
+            dialog.exec()
+            self.knowledge_selector.set_document_manager(self.document_manager)
+            self.knowledge_selector.set_knowledge(
+                self.app_state.get("active_knowledge_mode", "none"),
+                self.app_state.get("active_knowledge_doc_ids", [])
+            )
+
     def _open_model_manager(self):
         from ui.model_manager_dialog import ModelManagerDialog
         dialog = ModelManagerDialog(self.client, self.app_state, self)
@@ -449,7 +512,21 @@ class MainWindow(QMainWindow):
         dialog.theme_changed.connect(self._on_theme_changed)
         dialog.endpoint_changed.connect(self.update_endpoint)
         dialog.manage_models_requested.connect(self._open_model_manager)
+        dialog.manage_memories_requested.connect(self._open_memory_dialog)
+        dialog.manage_knowledge_requested.connect(self._open_knowledge_dialog)
+        dialog.clear_chats_requested.connect(self._on_all_chats_cleared)
         dialog.exec()
+
+    def _on_all_chats_cleared(self):
+        self.sidebar.load_conversations()
+        self.chat_manager.start_new_conversation()
+        
+    def _open_memory_dialog(self):
+        from ui.memory_dialog import MemoryDialog
+        dialog = MemoryDialog(self.memory_manager, self)
+        dialog.exec()
+        if hasattr(self, "memory_selector"):
+            self.memory_selector.set_memory_manager(self.memory_manager)
     
     def _on_theme_changed(self, mode: str):
         from ui.theme.theme_manager import ThemeManager

@@ -188,6 +188,9 @@ class ChatWindow(QWidget):
         widget = MessageWidget(msg_dict["role"], msg_dict["content"], msg_dict.get("id"))
         if msg_dict["role"] == "assistant":
             widget.regenerate_requested.connect(self.chat_manager.regenerate_response)
+            memories = self.chat_manager.app_state.get("last_memories_data", [])
+            if memories and hasattr(widget, "set_recalled_memories"):
+                widget.set_recalled_memories(memories)
         widget.delete_requested.connect(self.chat_manager.delete_message)
         
         self.messages_layout.insertWidget(idx, widget)
@@ -223,12 +226,22 @@ class ChatWindow(QWidget):
             
     def on_generation_started(self):
         self.message_input.set_generating_state(True)
+        ast_id = self.chat_manager.current_assistant_msg_id
+        if ast_id in self.message_widgets:
+            widget = self.message_widgets[ast_id]
+            memories = self.chat_manager.app_state.get("last_memories_data", [])
+            if memories and hasattr(widget, "set_recalled_memories"):
+                widget.set_recalled_memories(memories)
         
     def on_generation_finished(self, full_response: str):
         self.message_input.set_generating_state(False)
         ast_id = self.chat_manager.current_assistant_msg_id
         if ast_id in self.message_widgets:
-            self.message_widgets[ast_id].render_content(full_response)
+            widget = self.message_widgets[ast_id]
+            widget.render_content(full_response)
+            memories = self.chat_manager.app_state.get("last_memories_data", [])
+            if memories and hasattr(widget, "set_recalled_memories"):
+                widget.set_recalled_memories(memories)
         
     def on_generation_error(self, error_msg: str):
         self.message_input.set_generating_state(False)

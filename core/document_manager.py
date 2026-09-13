@@ -6,6 +6,7 @@ from documents.chunking.text_chunker import TextChunker
 from documents.embeddings.embedding_provider import EmbeddingProvider
 from workers.document_worker import DocumentIndexingWorker, get_file_hash
 from core.app_state import AppState
+from utils.logger import logger
 
 class DocumentManager(QObject):
     document_added = Signal(int)
@@ -31,6 +32,14 @@ class DocumentManager(QObject):
         file_hash = get_file_hash(file_path)
         existing = self.repo.get_document_by_hash(file_hash)
         if existing:
+            # If document exists but has 0 chunks or failed, auto re-index
+            real_chunks = existing.get("real_chunk_count", 0)
+            if real_chunks == 0 or existing.get("status") != "Indexed":
+                logger.info("Document %d exists but has %d chunks (status=%s). Re-indexing...", existing["id"], real_chunks, existing.get("status"))
+                query = "UPDATE documents SET file_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+                self.repo.db.execute_query(query, (file_path, existing["id"]), commit=True)
+                self.reindex_document(existing["id"], file_path)
+                return existing["id"], "Re-indexing started."
             return existing["id"], "Document already exists."
             
         filename = os.path.basename(file_path)

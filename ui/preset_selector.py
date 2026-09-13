@@ -15,17 +15,17 @@ class PresetSelector(QWidget):
     def init_ui(self):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
-        layout.setSizeConstraint(QHBoxLayout.SizeConstraint.SetMinimumSize)
+        layout.setSpacing(4)
 
         self.preset_label = QLabel("Persona:")
         self.preset_label.setObjectName("TopBarLabel")
+        self.preset_label.setFixedWidth(54)
         layout.addWidget(self.preset_label)
 
         self.combo_box = QComboBox()
         self.combo_box.setObjectName("PresetCombo")
-        self.combo_box.setMinimumWidth(195)
-        self.combo_box.setFixedHeight(30)
+        self.combo_box.setFixedWidth(165)
+        self.combo_box.setFixedHeight(28)
         
         for p in list_presets():
             self.combo_box.addItem(f"{p['icon']} {p['name']}", userData=p["id"])

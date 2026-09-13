@@ -16,17 +16,47 @@ class DocumentRepository:
         return doc_id
 
     def get_document(self, doc_id: int):
-        query = "SELECT * FROM documents WHERE id = ?"
+        query = """
+            SELECT d.*, 
+                   COALESCE(c.real_chunk_count, 0) as real_chunk_count
+            FROM documents d
+            LEFT JOIN (
+                SELECT document_id, COUNT(*) as real_chunk_count 
+                FROM document_chunks 
+                GROUP BY document_id
+            ) c ON d.id = c.document_id
+            WHERE d.id = ?
+        """
         res = self.db.execute_query(query, (doc_id,))
         return dict(res[0]) if res else None
 
     def get_document_by_hash(self, file_hash: str):
-        query = "SELECT * FROM documents WHERE file_hash = ?"
+        query = """
+            SELECT d.*, 
+                   COALESCE(c.real_chunk_count, 0) as real_chunk_count
+            FROM documents d
+            LEFT JOIN (
+                SELECT document_id, COUNT(*) as real_chunk_count 
+                FROM document_chunks 
+                GROUP BY document_id
+            ) c ON d.id = c.document_id
+            WHERE d.file_hash = ?
+        """
         res = self.db.execute_query(query, (file_hash,))
         return dict(res[0]) if res else None
 
     def list_documents(self):
-        query = "SELECT * FROM documents ORDER BY created_at DESC"
+        query = """
+            SELECT d.*, 
+                   COALESCE(c.real_chunk_count, 0) as real_chunk_count
+            FROM documents d
+            LEFT JOIN (
+                SELECT document_id, COUNT(*) as real_chunk_count 
+                FROM document_chunks 
+                GROUP BY document_id
+            ) c ON d.id = c.document_id
+            ORDER BY d.created_at DESC
+        """
         return [dict(row) for row in self.db.execute_query(query)]
 
     def update_document_status(self, doc_id: int, status: str, chunk_count: int = None):
@@ -85,6 +115,27 @@ class DocumentRepository:
         for row in rows:
             c = dict(row)
             # Deserialize embedding
+            c["embedding"] = json.loads(c["embedding"].decode('utf-8'))
+            chunks.append(c)
+        return chunks
+
+    def get_chunks_for_documents(self, doc_ids: list[int]):
+        """
+        Fetches chunks only for the specified document IDs.
+        """
+        if not doc_ids:
+            return []
+        placeholders = ",".join("?" * len(doc_ids))
+        query = f"""
+            SELECT dc.*, d.filename 
+            FROM document_chunks dc
+            JOIN documents d ON dc.document_id = d.id
+            WHERE dc.embedding IS NOT NULL AND dc.document_id IN ({placeholders})
+        """
+        rows = self.db.execute_query(query, tuple(doc_ids))
+        chunks = []
+        for row in rows:
+            c = dict(row)
             c["embedding"] = json.loads(c["embedding"].decode('utf-8'))
             chunks.append(c)
         return chunks

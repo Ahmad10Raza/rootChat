@@ -36,14 +36,14 @@ class TestSidebarCollapse(unittest.TestCase):
         self.assertEqual(self.sidebar.maximumWidth(), 56)
         self.assertEqual(self.sidebar.minimumWidth(), 56)
         self.assertTrue(self.sidebar.title_label.isHidden())
-        self.assertTrue(self.sidebar.search_bar.isHidden())
         self.assertTrue(self.sidebar.chat_list.isHidden())
-        self.assertTrue(self.sidebar.archive_btn.isHidden())
+        self.assertFalse(self.sidebar.archive_btn.isHidden())
 
         # Check compact icon buttons
         self.assertEqual(self.sidebar.new_chat_btn.text(), "＋")
         self.assertEqual(self.sidebar.memory_btn.text(), "🧠")
         self.assertEqual(self.sidebar.knowledge_btn.text(), "📚")
+        self.assertEqual(self.sidebar.archive_btn.text(), "📦")
         self.assertEqual(self.sidebar.settings_btn.text(), "⚙")
         self.assertEqual(toggled_events, [True])
 

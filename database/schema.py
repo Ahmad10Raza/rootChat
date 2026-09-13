@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS conversations (
     title TEXT NOT NULL,
     model TEXT NOT NULL,
     preset TEXT DEFAULT 'general',
+    knowledge_mode TEXT DEFAULT 'none',
+    knowledge_doc_ids TEXT DEFAULT '[]',
     is_pinned BOOLEAN DEFAULT 0,
     is_archived BOOLEAN DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -28,9 +30,10 @@ CREATE_MEMORIES_TABLE = """
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT NOT NULL,
-    category TEXT,
+    category TEXT DEFAULT 'general',
     source TEXT DEFAULT 'user',
     is_enabled BOOLEAN DEFAULT 1,
+    embedding BLOB DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

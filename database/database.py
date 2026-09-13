@@ -68,6 +68,10 @@ class DatabaseManager:
                 cursor.execute("ALTER TABLE conversations ADD COLUMN is_archived BOOLEAN DEFAULT 0;")
             if 'preset' not in columns:
                 cursor.execute("ALTER TABLE conversations ADD COLUMN preset TEXT DEFAULT 'general';")
+            if 'knowledge_mode' not in columns:
+                cursor.execute("ALTER TABLE conversations ADD COLUMN knowledge_mode TEXT DEFAULT 'none';")
+            if 'knowledge_doc_ids' not in columns:
+                cursor.execute("ALTER TABLE conversations ADD COLUMN knowledge_doc_ids TEXT DEFAULT '[]';")
                 
             cursor.execute("PRAGMA table_info(memories);")
             columns = [row['name'] for row in cursor.fetchall()]
@@ -75,6 +79,8 @@ class DatabaseManager:
                 cursor.execute("ALTER TABLE memories ADD COLUMN is_enabled BOOLEAN DEFAULT 1;")
             if 'source' not in columns and len(columns) > 0:
                 cursor.execute("ALTER TABLE memories ADD COLUMN source TEXT DEFAULT 'user';")
+            if 'embedding' not in columns and len(columns) > 0:
+                cursor.execute("ALTER TABLE memories ADD COLUMN embedding BLOB DEFAULT NULL;")
             
             conn.commit()
             logger.info("Database tables initialized successfully.")
@@ -127,4 +133,20 @@ class DatabaseManager:
         finally:
             if conn:
                 conn.close()
+
+    def vacuum(self):
+        """Run VACUUM on the database to reclaim free space and defragment."""
+        conn = None
+        try:
+            conn = self.get_connection()
+            conn.isolation_level = None
+            conn.execute("VACUUM")
+            logger.info("Database vacuumed successfully at %s", self.db_path)
+        except sqlite3.Error as e:
+            logger.error("Database vacuum error: %s", e)
+            raise
+        finally:
+            if conn:
+                conn.close()
+
 

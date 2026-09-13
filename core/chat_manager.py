@@ -1,3 +1,4 @@
+import json
 from PySide6.QtCore import QObject, Signal
 from core.app_state import AppState
 from core.ollama_client import OllamaClient
@@ -18,6 +19,7 @@ class ChatManager(QObject):
     generation_error = Signal(str)
     generation_stopped = Signal()
     conversation_created = Signal(int)
+    knowledge_mode_changed = Signal(str, list)
     
     def __init__(self, app_state: AppState, client: OllamaClient, db_manager: DatabaseManager, memory_manager, context_manager):
         super().__init__()
@@ -39,6 +41,14 @@ class ChatManager(QObject):
         self.app_state.set("last_sources_data", [])
         self.app_state.set("last_generation_stats", {})
         
+        default_mode = self.app_state.get("default_knowledge_mode", "none")
+        self.app_state.set("active_knowledge_mode", default_mode)
+        self.app_state.set("active_knowledge_doc_ids", [])
+        self.knowledge_mode_changed.emit(default_mode, [])
+        
+        default_preset = self.app_state.get("default_preset", "general")
+        self.app_state.set("active_preset", default_preset)
+        
     def load_conversation(self, conversation_id: int):
         """Loads conversation context and sets it active."""
         conv = self.conv_repo.get_conversation(conversation_id)
@@ -50,19 +60,52 @@ class ChatManager(QObject):
                 self.app_state.set("active_preset", conv["preset"])
             else:
                 self.app_state.set("active_preset", "general")
+                
+            k_mode = conv.get("knowledge_mode") or "none"
+            k_docs_raw = conv.get("knowledge_doc_ids") or "[]"
+            try:
+                k_docs = json.loads(k_docs_raw) if isinstance(k_docs_raw, str) else list(k_docs_raw)
+            except Exception:
+                k_docs = []
+                
+            self.app_state.set("active_knowledge_mode", k_mode)
+            self.app_state.set("active_knowledge_doc_ids", k_docs)
+            self.knowledge_mode_changed.emit(k_mode, k_docs)
+            
             messages = self.msg_repo.get_messages(conversation_id)
             self.app_state.set("current_messages", messages)
             return messages
         return []
-        
+
+    def set_conversation_knowledge(self, conversation_id: int, mode: str, doc_ids: list):
+        """Sets knowledge mode ('none' | 'all' | 'specific') and doc_ids for a conversation."""
+        self.app_state.set("active_knowledge_mode", mode)
+        self.app_state.set("active_knowledge_doc_ids", doc_ids)
+        if conversation_id:
+            self.conv_repo.update_conversation(
+                conversation_id, 
+                knowledge_mode=mode, 
+                knowledge_doc_ids=json.dumps(doc_ids)
+            )
+        self.knowledge_mode_changed.emit(mode, doc_ids)
+
     def _ensure_conversation_exists(self, initial_message: str):
         """Creates a conversation record if one does not exist for the current view."""
         conv_id = self.app_state.get("active_conversation_id")
         if not conv_id:
             model = self.app_state.get("selected_model") or "default"
             preset = self.app_state.get("active_preset", "general")
+            k_mode = self.app_state.get("active_knowledge_mode", "none")
+            k_docs = self.app_state.get("active_knowledge_doc_ids", [])
+            
             # Create a placeholder to grab an ID first
-            conv_id = self.conv_repo.create_conversation("New Chat...", model, preset=preset)
+            conv_id = self.conv_repo.create_conversation(
+                "New Chat...", 
+                model, 
+                preset=preset, 
+                knowledge_mode=k_mode, 
+                knowledge_doc_ids=json.dumps(k_docs)
+            )
             
             # Now build a distinct, short title
             words = initial_message.split()
@@ -90,20 +133,32 @@ class ChatManager(QObject):
         user_msg = {"id": user_msg_id, "role": "user", "content": content}
         self.message_added.emit(user_msg)
         
-        # Phase 3: Detect explicit memory commands
-        is_memory_command = self.memory_manager.detect_and_save_explicit_memory(content)
-        if is_memory_command:
-            # Short-circuit Ollama, just reply with a local confirmation
-            self._handle_local_memory_confirmation(conv_id)
+        # Check memory commands (remember / forget / hybrid)
+        intent_type, extracted_fact, category, remaining_query = self.memory_manager.parse_memory_intent(content)
+        if intent_type == "remember":
+            saved = self.memory_manager.create_memory(extracted_fact, category=category, source="explicit")
+            if remaining_query and len(remaining_query.strip()) > 3:
+                logger.info("Hybrid memory prompt: remembered '%s', proceeding with query '%s'", extracted_fact, remaining_query)
+                self._start_generation(conv_id)
+            else:
+                confirm = f"✓ Remembered: {extracted_fact}" if saved else f"ℹ️ Already remembered: {extracted_fact}"
+                self._handle_local_memory_confirmation(conv_id, confirm)
+        elif intent_type == "forget":
+            deleted_content = self.memory_manager.forget_memory(extracted_fact)
+            if deleted_content:
+                confirm = f"✓ Forgotten: {deleted_content}"
+            else:
+                confirm = f"ℹ️ No matching memory found for '{extracted_fact}'"
+            self._handle_local_memory_confirmation(conv_id, confirm)
         else:
             self._start_generation(conv_id)
             
-    def _handle_local_memory_confirmation(self, conv_id: int):
-        ast_msg_id = self.msg_repo.create_message(conv_id, "assistant", "✓ Saved to memory")
-        ast_msg = {"id": ast_msg_id, "role": "assistant", "content": "✓ Saved to memory"}
+    def _handle_local_memory_confirmation(self, conv_id: int, message: str = "✓ Saved to memory"):
+        ast_msg_id = self.msg_repo.create_message(conv_id, "assistant", message)
+        ast_msg = {"id": ast_msg_id, "role": "assistant", "content": message}
         self.message_added.emit(ast_msg)
         # Finish immediately without invoking StreamWorker
-        self.generation_finished.emit("✓ Saved to memory")
+        self.generation_finished.emit(message)
         
     def _start_generation(self, conv_id: int):
         """Internal method to start background stream generation."""
@@ -126,7 +181,8 @@ class ChatManager(QObject):
         context_messages = self.context_manager.build_context(conv_id, current_user_message)
             
         model = self.app_state.get("selected_model")
-        options = {"temperature": 0.7}
+        temp = float(self.app_state.get("temperature", 0.7))
+        options = {"temperature": temp}
         
         self.worker = StreamWorker(self.client, model, context_messages, options)
         self.worker.chunk_received.connect(self.chunk_received.emit)

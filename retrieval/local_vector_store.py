@@ -18,10 +18,15 @@ class LocalVectorStore(VectorStore):
     def __init__(self, doc_repo: DocumentRepository):
         self.doc_repo = doc_repo
 
-    def search(self, query_embedding: list, top_k: int = 5, similarity_threshold: float = 0.5) -> list:
-        chunks = self.doc_repo.get_all_chunks()
+    def search(self, query_embedding: list, top_k: int = 5, similarity_threshold: float = 0.5, doc_ids: list[int] = None) -> list:
+        if doc_ids is not None:
+            if not doc_ids:
+                return []
+            chunks = self.doc_repo.get_chunks_for_documents(doc_ids)
+        else:
+            chunks = self.doc_repo.get_all_chunks()
+            
         results = []
-        
         for chunk in chunks:
             sim = cosine_similarity(query_embedding, chunk["embedding"])
             if sim >= similarity_threshold:

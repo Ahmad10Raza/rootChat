@@ -1,6 +1,18 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton, QLabel
-from PySide6.QtCore import Signal, Slot, Qt
+from PySide6.QtCore import Signal, Slot, Qt, QSize
 from utils.logger import logger
+
+
+class TopBarIconButton(QPushButton):
+    """Square icon button that reports accurate size hints to Qt layout managers."""
+    def minimumSizeHint(self):
+        w = self.maximumWidth()
+        h = self.maximumHeight()
+        return QSize(w if w < 16777215 else 26, h if h < 16777215 else 26)
+
+    def sizeHint(self):
+        return self.minimumSizeHint()
+
 
 class ModelSelector(QWidget):
     """Dropdown and refresh controls to select active local Ollama model."""
@@ -16,31 +28,31 @@ class ModelSelector(QWidget):
     def init_ui(self):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
-        layout.setSizeConstraint(QHBoxLayout.SizeConstraint.SetMinimumSize)
+        layout.setSpacing(4)
 
         self.model_label = QLabel("Model:")
         self.model_label.setObjectName("TopBarLabel")
+        self.model_label.setFixedWidth(38)
         layout.addWidget(self.model_label)
 
         self.combo_box = QComboBox()
         self.combo_box.setObjectName("ModelCombo")
-        self.combo_box.setMinimumWidth(150)
-        self.combo_box.setFixedHeight(30)
+        self.combo_box.setFixedWidth(120)
+        self.combo_box.setFixedHeight(28)
         self.combo_box.currentTextChanged.connect(self._on_model_changed)
         layout.addWidget(self.combo_box)
 
-        self.refresh_btn = QPushButton("↻")
+        self.refresh_btn = TopBarIconButton("↻")
         self.refresh_btn.setObjectName("TopBarIconBtn")
         self.refresh_btn.setToolTip("Refresh model list")
-        self.refresh_btn.setFixedSize(28, 28)
+        self.refresh_btn.setFixedSize(25, 25)
         self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.refresh_btn.clicked.connect(self.refresh_requested.emit)
         layout.addWidget(self.refresh_btn)
 
-        self.manage_btn = QPushButton("⚙")
+        self.manage_btn = TopBarIconButton("⚙")
         self.manage_btn.setObjectName("TopBarIconBtn")
-        self.manage_btn.setFixedSize(28, 28)
+        self.manage_btn.setFixedSize(25, 25)
         self.manage_btn.setToolTip("Manage Ollama models (pull, inspect, delete)")
         self.manage_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.manage_btn.clicked.connect(self.manage_requested.emit)

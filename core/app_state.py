@@ -20,7 +20,17 @@ class AppState(QObject):
             "generation_state": "idle",
             "last_generation_stats": {},
             "last_memories_used": 0,
-            "last_sources_used": 0
+            "last_sources_used": 0,
+            "default_knowledge_mode": self.config.get("default_knowledge_mode", "none"),
+            "active_knowledge_mode": self.config.get("default_knowledge_mode", "none"),
+            "active_knowledge_doc_ids": [],
+            "memory_enabled": self.config.get("memory_enabled", True),
+            "temperature": float(self.config.get("temperature", 0.7)),
+            "default_preset": self.config.get("default_preset", "general"),
+            "top_k": int(self.config.get("top_k", 5)),
+            "similarity_threshold": float(self.config.get("similarity_threshold", 0.2)),
+            "max_memories": int(self.config.get("max_memories", 5)),
+            "context_message_limit": int(self.config.get("context_message_limit", 30))
         }
 
     def get(self, key, default=None):
@@ -32,10 +42,13 @@ class AppState(QObject):
         if key == "current_messages" or self._state.get(key) != value:
             self._state[key] = value
             self.state_changed.emit(key, value)
-            if key == "selected_model":
-                self.config.set("selected_model", value)
-            elif key == "ollama_endpoint":
-                self.config.set("ollama_endpoint", value)
+            if key in (
+                "selected_model", "ollama_endpoint", "default_knowledge_mode", 
+                "memory_enabled", "temperature", "default_preset", "top_k", 
+                "similarity_threshold", "max_memories", "context_message_limit",
+                "theme", "enter_to_send", "tray_icon_enabled", "notifications_enabled", "minimize_to_tray"
+            ):
+                self.config.set(key, value)
             logger.debug("AppState updated: %s", key)
 
     # Maintain properties for backward compatibility with Phase 1 components

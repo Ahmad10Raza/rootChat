@@ -9,56 +9,106 @@ from ui.memory_dialog import MemoryDialog
 from utils.resource_path import get_resource_path
 
 
-class ArchiveRowWidget(QFrame):
-    """Modern Archive View row with an inline ON/OFF toggle pill button right after 'Archive View'."""
-    def __init__(self, on_toggle, parent=None):
+class SidebarFeatureRow(QFrame):
+    """
+    Modern sidebar feature row with:
+    - An icon label (e.g. 🧠, 📚, 📦)
+    - A title label (triggers on_manage callback if present)
+    - An inline ON/OFF toggle pill button (triggers on_toggle callback)
+    - Seamless support for expanded and collapsed sidebar modes
+    """
+    def __init__(self, icon: str, title: str, on_toggle=None, on_manage=None, initial_active=False, parent=None):
         super().__init__(parent)
-        self.setObjectName("ArchiveRow")
+        self.setObjectName("ArchiveRow")  # Reuses theme styling
         self.on_toggle = on_toggle
-        self._active = False
+        self.on_manage = on_manage
+        self._active = bool(initial_active)
+        self._icon_char = icon
+        self._title_str = title
+        self._is_collapsed = False
         
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(8)
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(8, 4, 8, 4)
+        self.layout.setSpacing(8)
 
-        self.icon_lbl = QLabel("📦")
+        self.icon_lbl = QLabel(icon)
         self.icon_lbl.setObjectName("ArchiveIcon")
-        layout.addWidget(self.icon_lbl)
+        self.layout.addWidget(self.icon_lbl)
 
-        self.title_lbl = QLabel("Archive View")
+        self.title_lbl = QLabel(title)
         self.title_lbl.setObjectName("ArchiveTitle")
-        layout.addWidget(self.title_lbl)
+        self.layout.addWidget(self.title_lbl)
 
-        layout.addStretch()
+        self.layout.addStretch()
 
-        self.toggle_btn = QPushButton("OFF")
+        self.toggle_btn = QPushButton("ON" if self._active else "OFF")
         self.toggle_btn.setObjectName("ArchiveToggleBtn")
         self.toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.toggle_btn.setFixedSize(46, 22)
-        self.toggle_btn.clicked.connect(self.on_toggle)
-        layout.addWidget(self.toggle_btn)
+        self.toggle_btn.clicked.connect(self._handle_toggle_clicked)
+        self.layout.addWidget(self.toggle_btn)
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.set_active(self._active)
+
+    def _handle_toggle_clicked(self):
+        if self.on_toggle:
+            self.on_toggle()
 
     def mousePressEvent(self, event):
-        self.on_toggle()
+        # Click on row body
+        if self.on_manage:
+            self.on_manage()
+        elif self.on_toggle:
+            self.on_toggle()
 
     def set_active(self, active: bool):
-        self._active = active
-        self.toggle_btn.setText("ON" if active else "OFF")
-        self.toggle_btn.setProperty("active", "true" if active else "false")
+        self._active = bool(active)
+        self.toggle_btn.setText("ON" if self._active else "OFF")
+        self.toggle_btn.setProperty("active", "true" if self._active else "false")
         self.toggle_btn.style().unpolish(self.toggle_btn)
         self.toggle_btn.style().polish(self.toggle_btn)
 
+    def is_active(self) -> bool:
+        return self._active
+
+    def set_collapsed(self, collapsed: bool):
+        self._is_collapsed = collapsed
+        if collapsed:
+            self.title_lbl.hide()
+            self.toggle_btn.hide()
+            self.layout.setContentsMargins(0, 0, 0, 0)
+            self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.icon_lbl.setStyleSheet("font-size: 18px;")
+            self.setFixedHeight(36)
+            self.setToolTip(f"{self._title_str} ({'ON' if self._active else 'OFF'})")
+        else:
+            self.title_lbl.show()
+            self.toggle_btn.show()
+            self.layout.setContentsMargins(8, 4, 8, 4)
+            self.layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+            self.icon_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.icon_lbl.setStyleSheet("")
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)
+            self.setToolTip("")
+
     def setText(self, text: str):
-        # Backward compatibility if setText is called
+        # Backward compatibility if setText is called directly
         if "ON" in text:
             self.set_active(True)
         elif "OFF" in text:
             self.set_active(False)
 
     def text(self) -> str:
-        return f"Archive View: {self.toggle_btn.text()}"
+        if self._is_collapsed:
+            return self._icon_char
+        return self._title_str
+
+
+# Backward compatibility alias
+ArchiveRowWidget = SidebarFeatureRow
 
 
 class Sidebar(QWidget):
@@ -156,33 +206,59 @@ class Sidebar(QWidget):
         bottom_layout.setContentsMargins(0, 4, 0, 0)
         bottom_layout.setSpacing(4)
 
-        # Memory Button
-        self.memory_btn = QPushButton("🧠  Memory")
-        self.memory_btn.setObjectName("SidebarActionBtn")
-        self.memory_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.memory_btn.clicked.connect(self._open_memory_dialog)
-        bottom_layout.addWidget(self.memory_btn)
+        # 1. Memory Row with inline ON/OFF toggle
+        mem_enabled = True
+        if hasattr(self.chat_manager, "app_state") and self.chat_manager.app_state:
+            mem_enabled = self.chat_manager.app_state.get("memory_enabled", True)
+        self.memory_row = SidebarFeatureRow(
+            icon="🧠",
+            title="Memory",
+            on_toggle=self._toggle_memory,
+            on_manage=self._open_memory_dialog,
+            initial_active=mem_enabled
+        )
+        self.memory_btn = self.memory_row
+        bottom_layout.addWidget(self.memory_row)
         
-        # Knowledge Button
-        self.knowledge_btn = QPushButton("📚  Knowledge Base")
-        self.knowledge_btn.setObjectName("SidebarActionBtn")
-        self.knowledge_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.knowledge_btn.clicked.connect(self._open_knowledge_dialog)
-        bottom_layout.addWidget(self.knowledge_btn)
-        
-        # Settings Button
+        # 2. Knowledge Base Row with inline ON/OFF toggle
+        k_active = False
+        if hasattr(self.chat_manager, "app_state") and self.chat_manager.app_state:
+            k_active = (self.chat_manager.app_state.get("active_knowledge_mode", "none") != "none")
+        self.knowledge_row = SidebarFeatureRow(
+            icon="📚",
+            title="Knowledge Base",
+            on_toggle=self._toggle_knowledge,
+            on_manage=self._open_knowledge_dialog,
+            initial_active=k_active
+        )
+        self.knowledge_btn = self.knowledge_row
+        bottom_layout.addWidget(self.knowledge_row)
+
+        # 3. Archive View Row with inline ON/OFF toggle (Moved up!)
+        self.showing_archived = False
+        self.archive_row = SidebarFeatureRow(
+            icon="📦",
+            title="Archive View",
+            on_toggle=self._toggle_archived_view,
+            on_manage=None,
+            initial_active=False
+        )
+        self.archive_btn = self.archive_row
+        bottom_layout.addWidget(self.archive_row)
+
+        # 4. Settings Button (Placed LAST at the bottom)
         self.settings_btn = QPushButton("⚙  Settings")
         self.settings_btn.setObjectName("SidebarActionBtn")
         self.settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.settings_btn.clicked.connect(self.settings_requested.emit)
         bottom_layout.addWidget(self.settings_btn)
 
-        # Archived toggle button with inline ON/OFF pill
-        self.showing_archived = False
-        self.archive_btn = ArchiveRowWidget(self._toggle_archived_view)
-        bottom_layout.addWidget(self.archive_btn)
-
         self.main_layout.addLayout(bottom_layout)
+
+        # Connect live state listeners
+        if hasattr(self.chat_manager, "app_state") and self.chat_manager.app_state:
+            self.chat_manager.app_state.state_changed.connect(self._on_app_state_changed)
+        self.chat_manager.knowledge_mode_changed.connect(self._on_knowledge_mode_changed)
 
         self.chat_manager.conversation_created.connect(self.load_conversations)
         self.load_conversations()
@@ -243,22 +319,15 @@ class Sidebar(QWidget):
                 "}"
             )
             
-            self.memory_btn.setText("🧠")
-            self.memory_btn.setToolTip("Memory Management")
-            self.memory_btn.setFixedHeight(36)
-            self.memory_btn.setStyleSheet(action_style)
-            
-            self.knowledge_btn.setText("📚")
-            self.knowledge_btn.setToolTip("Knowledge Base (RAG)")
-            self.knowledge_btn.setFixedHeight(36)
-            self.knowledge_btn.setStyleSheet(action_style)
+            self.memory_row.set_collapsed(True)
+            self.knowledge_row.set_collapsed(True)
+            self.archive_row.set_collapsed(True)
+            self.archive_row.show()
             
             self.settings_btn.setText("⚙")
             self.settings_btn.setToolTip("Settings (Ctrl+,)")
             self.settings_btn.setFixedHeight(36)
             self.settings_btn.setStyleSheet(action_style)
-            
-            self.archive_btn.hide()
         else:
             self.setFixedWidth(260)
             self.main_layout.setContentsMargins(12, 14, 12, 14)
@@ -290,26 +359,17 @@ class Sidebar(QWidget):
             self.chat_list.show()
             self.middle_spacer.hide()
             
-            self.memory_btn.setText("🧠  Memory")
-            self.memory_btn.setToolTip("")
-            self.memory_btn.setMinimumHeight(0)
-            self.memory_btn.setMaximumHeight(16777215)
-            self.memory_btn.setStyleSheet("")
-            
-            self.knowledge_btn.setText("📚  Knowledge Base")
-            self.knowledge_btn.setToolTip("")
-            self.knowledge_btn.setMinimumHeight(0)
-            self.knowledge_btn.setMaximumHeight(16777215)
-            self.knowledge_btn.setStyleSheet("")
-            
+            self.memory_row.set_collapsed(False)
+            self.knowledge_row.set_collapsed(False)
+            self.archive_row.set_collapsed(False)
+            self.archive_row.set_active(self.showing_archived)
+            self.archive_row.show()
+
             self.settings_btn.setText("⚙  Settings")
             self.settings_btn.setToolTip("")
             self.settings_btn.setMinimumHeight(0)
             self.settings_btn.setMaximumHeight(16777215)
             self.settings_btn.setStyleSheet("")
-            
-            self.archive_btn.set_active(self.showing_archived)
-            self.archive_btn.show()
 
         self.sidebar_toggled.emit(self.is_collapsed)
         
@@ -427,6 +487,30 @@ class Sidebar(QWidget):
         self.showing_archived = not self.showing_archived
         self.archive_btn.set_active(self.showing_archived)
         self.load_conversations()
+
+    def _toggle_memory(self):
+        if hasattr(self.chat_manager, "app_state") and self.chat_manager.app_state:
+            curr = self.chat_manager.app_state.get("memory_enabled", True)
+            new_val = not curr
+            self.chat_manager.app_state.set("memory_enabled", new_val)
+            self.memory_row.set_active(new_val)
+
+    def _toggle_knowledge(self):
+        if hasattr(self.chat_manager, "app_state") and self.chat_manager.app_state:
+            curr_mode = self.chat_manager.app_state.get("active_knowledge_mode", "none")
+            conv_id = self.chat_manager.app_state.get("active_conversation_id")
+            new_mode = "none" if curr_mode != "none" else "all"
+            self.chat_manager.set_conversation_knowledge(conv_id, new_mode, [])
+            self.knowledge_row.set_active(new_mode != "none")
+
+    def _on_app_state_changed(self, key: str, value):
+        if key == "memory_enabled":
+            self.memory_row.set_active(bool(value))
+        elif key == "active_knowledge_mode":
+            self.knowledge_row.set_active(value != "none")
+
+    def _on_knowledge_mode_changed(self, mode: str, doc_ids: list):
+        self.knowledge_row.set_active(mode != "none")
         
     def _on_new_chat(self):
         self.chat_manager.start_new_conversation()

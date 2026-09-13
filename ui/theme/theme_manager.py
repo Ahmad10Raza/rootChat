@@ -30,6 +30,18 @@ class ThemeManager:
         return self._colors
     
     @property
+    def mode(self):
+        return self._mode
+        
+    @property
+    def theme(self):
+        return self._mode
+        
+    @property
+    def is_dark(self) -> bool:
+        return self._mode != "light"
+    
+    @property
     def font_family(self):
         if self._font_family is None:
             self._font_family = get_preferred_font_family()
@@ -257,35 +269,53 @@ class ThemeManager:
             min-height: 18px;
             max-height: 20px;
         }}
-        QComboBox#ModelCombo, QComboBox#PresetCombo {{
+        QComboBox {{
             background-color: {c.BG_INPUT};
             border: 1px solid {c.BORDER};
             border-radius: {Radius.MD}px;
             color: {c.TEXT_PRIMARY};
-            padding: 4px 22px 4px 8px;
+            padding: 4px 10px;
             font-size: 12px;
             min-height: 24px;
-            max-height: 30px;
         }}
-        QComboBox#ModelCombo:hover, QComboBox#PresetCombo:hover {{
+        QComboBox:hover {{
             border-color: {c.BORDER_FOCUS};
             background-color: {c.BG_HOVER};
         }}
-        QComboBox#ModelCombo:focus, QComboBox#PresetCombo:focus {{
+        QComboBox:focus {{
             border-color: {c.ACCENT};
         }}
-        QComboBox#ModelCombo::drop-down, QComboBox#PresetCombo::drop-down {{
+        QComboBox::drop-down {{
             border: none;
             width: 18px;
         }}
-        QComboBox#ModelCombo QAbstractItemView, QComboBox#PresetCombo QAbstractItemView {{
+        QComboBox#ModelCombo, QComboBox#PresetCombo {{
+            padding: 4px 22px 4px 8px;
+            max-height: 30px;
+        }}
+        QComboBox QAbstractItemView {{
             background-color: {c.BG_CARD};
             color: {c.TEXT_PRIMARY};
             selection-background-color: {c.BG_SELECTED};
+            selection-color: {c.TEXT_PRIMARY};
             border: 1px solid {c.BORDER};
             border-radius: {Radius.SM}px;
-            padding: {Spacing.XS}px;
+            padding: 4px;
             outline: none;
+        }}
+        QComboBox QAbstractItemView::item {{
+            min-height: 26px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: {c.TEXT_PRIMARY};
+        }}
+        QComboBox QAbstractItemView::item:hover {{
+            background-color: {c.BG_HOVER};
+            color: {c.TEXT_PRIMARY};
+        }}
+        QComboBox QAbstractItemView::item:selected {{
+            background-color: {c.BG_SELECTED};
+            color: {c.TEXT_ACCENT};
         }}
         QPushButton#TopBarBtn {{
             background-color: {c.BG_INPUT};
@@ -394,7 +424,6 @@ class ThemeManager:
         QLabel#MsgContent {{
             color: {c.TEXT_PRIMARY};
             font-size: {FontSizes.CHAT_BODY}px;
-            line-height: 1.6;
         }}
         QPushButton#MsgActionBtn {{
             background-color: transparent;

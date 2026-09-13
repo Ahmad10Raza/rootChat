@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-09-13
+
+### Added
+- **Comprehensive Settings Audit & Expansion**:
+  - **Default Model**: Select preferred default model from installed Ollama models to auto-select on launch.
+  - **Default Persona**: Preselect starting assistant persona (`🤖 General Assistant`, `💻 Coding Assistant`, etc.) for new conversations.
+  - **Generation Temperature**: Smooth slider control (0.00 – 1.00) with live value badge, directly wired to Ollama generation parameters.
+  - **Context History Limit**: Configurable chat history depth (4 – 100 messages) passed into LLM context window.
+  - **Max Recalled Memories**: Configurable limit for remembered facts injected into prompts (1 – 20 items).
+  - **RAG Fine-Tuning**: In-app controls for retrieved chunks (Top-K) and cosine similarity threshold.
+  - **Manage Knowledge Library Button**: Direct access to the Knowledge Base document manager from Settings.
+  - **Data & Storage Card**: Dedicated maintenance section displaying live SQLite database path, file size, safe `VACUUM` defragmentation, and "Clear All Chats" action.
+- **Top-Bar Context Controls**:
+  - Added dedicated `🧠 Memory: On / Off ▾` selector alongside `📚 Knowledge: Off / All / N Docs ▾` with full scoping modal.
+- **High-Performance PDF Parsing**: Ingest complex PDF documents with page tracking using PyMuPDF / Fitz.
+
+### Fixed
+- **Persona Truncation**: Expanded top-bar label width and combobox width to 165px, ensuring persona names like `🤖 General Assistant` display in full without clipping.
+- **Collapsed Sidebar Archive Icon**: Restored the missing `📦` Archive View icon in the 56px collapsed sidebar navigation rail.
+- **Light Theme Dropdown Popups**: Added global stylesheet rules for `QComboBox QAbstractItemView` ensuring clean card background (`#FFFFFF`), crisp dark text (`#1F2328`), and safety orange selection highlights instead of dark Linux system palette fallback.
+- **Settings Dialog X-Axis Lock**: Fixed horizontal scrolling overflow in settings dialog cards.
+
 ## [0.7.0] - 2026-09-12
 
 ### Added

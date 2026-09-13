@@ -35,12 +35,20 @@ class DocumentIndexingWorker(QThread):
         try:
             self.progress.emit("Extracting text...", 10)
             
-            # 1. Parse
-            pages = self.parser.parse(self.file_path)
+            # 1. Parse (with live progress for OCR/reading)
+            def _parse_progress(msg, pct):
+                self.progress.emit(msg, pct)
+                
+            pages = self.parser.parse(self.file_path, progress_callback=_parse_progress)
             if not pages or all(not p.get("content", "").strip() for p in pages):
                 self.repo.update_document_status(self.doc_id, "Failed")
-                self.finished.emit(self.doc_id, False, "No readable text found.")
+                self.finished.emit(
+                    self.doc_id, 
+                    False, 
+                    "No readable text found. If this is a scanned document, please verify that Tesseract OCR is installed (sudo apt install tesseract-ocr)."
+                )
                 return
+
                 
             self.progress.emit("Chunking text...", 30)
             
